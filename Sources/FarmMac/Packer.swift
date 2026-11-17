@@ -9,20 +9,33 @@ enum Packer {
         var errorDescription: String?
     }
 
-    static func blender() -> URL? {
+    nonisolated static func blender() -> URL? {
         let standard = URL(fileURLWithPath: "/Applications/Blender.app/Contents/MacOS/Blender")
         if FileManager.default.isExecutableFile(atPath: standard.path) { return standard }
         return NSWorkspace.shared.urlForApplication(withBundleIdentifier: "org.blenderfoundation.blender")?
             .appendingPathComponent("Contents/MacOS/Blender")
     }
 
-    static func script() -> URL? {
-        if let bundled = Bundle.main.url(forResource: "collect", withExtension: "py") { return bundled }
-        // `swift run` from the repo: Sources/FarmMac/Packer.swift -> Resources/collect.py
-        let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let dev = repo.appendingPathComponent("Resources/collect.py")
-        return FileManager.default.fileExists(atPath: dev.path) ? dev : nil
+    /// Blender's own Python 3 (it bundles zstandard), used to read previews without starting Blender.
+    nonisolated static func blenderPython() -> URL? {
+        guard let blender = blender() else { return nil }
+        let resources = blender.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Resources")
+        let fm = FileManager.default
+        for version in (try? fm.contentsOfDirectory(atPath: resources.path))?.sorted().reversed() ?? [] {
+            let bin = resources.appendingPathComponent("\(version)/python/bin")
+            if let name = (try? fm.contentsOfDirectory(atPath: bin.path))?.filter({ $0.hasPrefix("python3.") }).sorted().last {
+                return bin.appendingPathComponent(name)
+            }
+        }
+        return nil
     }
+
+    /// A file from Resources/: in the app bundle, or in the repo when run with `swift run`.
+    nonisolated static func resource(_ name: String, _ ext: String) -> URL? {
+        Bundle.main.url(forResource: name, withExtension: ext) ?? Theme.devResource("\(name).\(ext)")
+    }
+
+    static func script() -> URL? { resource("collect", "py") }
 
     /// Collects `blend` into a new staging folder. `progress` gets (done, total) as files are copied.
     static func collect(_ blend: URL, progress: @escaping @Sendable (Int, Int) -> Void) async throws -> (CollectReport, URL) {

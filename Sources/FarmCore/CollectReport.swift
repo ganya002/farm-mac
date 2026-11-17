@@ -24,6 +24,12 @@ public struct CollectReport: Codable, Sendable, Equatable {
 
         public var id: String { "\(type):\(block)" }
 
+        public init(type: String, block: String, name: String, original: String, status: Status,
+                    source: String? = nil, staged: String? = nil, files: Int? = nil, bytes: Int64? = nil) {
+            (self.type, self.block, self.name, self.original, self.status) = (type, block, name, original, status)
+            (self.source, self.staged, self.files, self.bytes) = (source, staged, files, bytes)
+        }
+
         /// A file name to give a file the student picks with Find…; the farm relinks missing files by name.
         public var pickedName: String {
             name.replacingOccurrences(of: "<UDIM>", with: "1001").replacingOccurrences(of: "<UVTILE>", with: "u1_v1")
@@ -33,6 +39,10 @@ public struct CollectReport: Codable, Sendable, Equatable {
     public var blend: String
     public var source: String
     public var items: [Item]
+
+    public init(blend: String, source: String, items: [Item]) {
+        (self.blend, self.source, self.items) = (blend, source, items)
+    }
 
     public var collected: [Item] { items.filter { $0.status == .collected } }
     public var found: [Item] { items.filter { $0.status == .found } }
